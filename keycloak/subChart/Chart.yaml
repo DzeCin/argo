@@ -1,0 +1,10 @@
+apiVersion: v2
+name: keycloak
+description: Sub chart for keycloak
+type: application
+version: 19.3.0
+appVersion: "1.16.0"
+dependencies:
+  - name: keycloak
+    version: 19.3.0
+    repository: oci://registry-1.docker.io/bitnamicharts

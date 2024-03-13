@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: postgresql
+  labels:
+    env: poc
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/DzeCin/argo-applications'
+    path: postgresql/subChart    
+    targetRevision: HEAD
+    helm:
+      valueFiles:
+        - values-poc.yaml
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: postrges-operator
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

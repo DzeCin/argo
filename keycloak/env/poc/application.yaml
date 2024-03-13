@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keycloak
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/DzeCin/argo-applications'
+    path: keycloak/subChart
+    targetRevision: HEAD
+    helm:
+      valueFiles:
+        - values-poc.yaml
+        - secrets://values-secret-poc.yaml
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: keycloak
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

@@ -1,0 +1,84 @@
+traefik:
+  ingressClass:
+    enabled: true
+    isDefaultClass: true
+  image:
+    registry: docker.io
+    repository: traefik
+    tag: "v2.11.0"
+  deployment:
+    podLabels:
+      app: traefik
+  providers:
+    kubernetesIngress:
+        publishedService:
+          enabled: true
+  extraObjects:
+    - apiVersion: "cert-manager.io/v1"
+      kind: "ClusterIssuer"
+      metadata:
+        name: "letsencrypt-staging"
+        namespace: "traefik"
+        labels:
+          helm.sh/chart: "traefik-26.1.0"
+          app.kubernetes.io/managed-by: "Helm"
+        annotations:
+          argocd.argoproj.io/sync-wave: "5"
+          argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+      spec:
+        acme:
+          email: "dzenancindrak@gmail.com"
+          privateKeySecretRef:
+            name: "letsencrypt-staging"
+          server: "https://acme-staging-v02.api.letsencrypt.org/directory"
+          solvers:
+          - http01:
+              ingress:
+                class: traefik
+  topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app: traefik
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role/infra
+            operator: Exists
+  requests:
+    cpu: "250m"
+    memory: "256Mi"
+  limits:
+    cpu: "500m"
+    memory: "768Mi"
+  securityContext:
+    capabilities:
+      drop: [ALL]
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false 
+  podSecurityContext:
+    fsGroupChangePolicy: "OnRootMismatch"
+    runAsGroup: 65532
+    runAsNonRoot: true
+    runAsUser: 65532
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+    metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 60

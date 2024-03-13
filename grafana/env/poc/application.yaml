@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  labels:
+    env: poc
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/DzeCin/argo-applications'
+    path: grafana/subChart
+    targetRevision: HEAD
+    helm:
+      valueFiles:
+        - values-poc.yaml
+        - secrets://values-poc-secret.yaml
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - ServerSideApply=true

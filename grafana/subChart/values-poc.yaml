@@ -1,0 +1,174 @@
+grafana:
+  deploymentStrategy:
+    type: Recreate
+  rbac:
+    create: true
+    namespaced: true
+  serviceAccount:
+    create: true
+  replicas: 1
+  automountServiceAccountToken: true
+  autoscaling:
+    enabled: false
+  podLabels:
+    app: grafana
+  image:
+    registry: docker.io
+    repository: grafana/grafana
+    tag: "10.0.12"
+    pullPolicy: IfNotPresent
+  testFramework:
+    enabled: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 472
+    runAsGroup: 472
+    fsGroup: 472
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    seccompProfile:
+      type: RuntimeDefault
+  createConfigmap: true
+
+  serviceMonitor:
+    enabled: true
+    path: /metrics
+    interval: 30s
+    scheme: http
+    scrapeTimeout: 30s
+
+  ingress:
+    enabled: true
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-staging
+    hosts:
+      - grafana.sb.cindrak.com
+    tls:
+      - hosts:
+          - grafana.sb.cindrak.com
+        secretName: grafana-sb-cindrak-com-tls
+  resources:
+    limits:
+      cpu: 350m
+      memory: 500Mi
+    requests:
+      cpu: 150m
+      memory: 200Mi
+  topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app: grafana
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role/infra
+            operator: Exists
+  persistence:
+    type: pvc
+    enabled: true
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+    finalizers:
+      - kubernetes.io/pvc-protection
+  initChownData:
+    enabled: true
+    resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    securityContext:
+      runAsNonRoot: false
+      runAsUser: 0
+      seccompProfile:
+        type: RuntimeDefault
+      capabilities:
+        add:
+          - CHOWN
+  adminUser: admin
+  # adminPassword: strongpassword
+  envFromSecrets:
+    - name: grafana-secret-env
+      optional: false
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://kube-prom-stack-kube-prome-prometheus:9090
+        isDefault: true
+        jsonData:
+          timeout: 500
+  grafana.ini:
+    paths:
+      data: /var/lib/grafana/
+      logs: /var/log/grafana
+      plugins: /var/lib/grafana/plugins
+      provisioning: /etc/grafana/provisioning
+    analytics:
+      check_for_updates: false
+    log:
+      mode: console
+    grafana_net:
+      url: https://grafana.net
+    server:
+      domain: "{{ if (and .Values.ingress.enabled .Values.ingress.hosts) }}{{ .Values.ingress.hosts | first }}{{ else }}''{{ end }}"
+      root_url: "https://grafana.sb.cindrak.com"
+    auth.generic_oauth:
+        enabled: true
+        name: Keycloak-OAuth
+        allow_sign_up:  true
+        tls_skip_verify_insecure: true
+        client_id: grafana-oidc
+        scopes: openid email profile offline_access roles
+        email_attribute_path: email
+        login_attribute_path: username
+        name_attribute_path: full_name
+        auth_url: https://keycloak.sb.cindrak.com/realms/grafana/protocol/openid-connect/auth
+        token_url: https://keycloak.sb.cindrak.com/realms/grafana/protocol/openid-connect/token
+        api_url: https://keycloak.sb.cindrak.com/realms/grafana/protocol/openid-connect/userinfo
+        role_attribute_path: contains(roles[*], 'admin') && 'Admin' || contains(roles[*], 'editor') && 'Editor' || 'Viewer'
+  sidecar:
+    image:
+      registry: quay.io
+      repository: kiwigrid/k8s-sidecar
+      tag: 1.26.1
+    resources:
+      limits:
+        cpu: 100m
+        memory: 100Mi
+      requests:
+        cpu: 50m
+        memory: 50Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      seccompProfile:
+        type: RuntimeDefault
+    logLevel: ERROR
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+    datasources:
+        enabled: true
+        label: grafana_datasource
+        labelValue: "1"
+        logLevel: ERROR
+  networkPolicy:
+    enabled: false

@@ -1,0 +1,194 @@
+keycloak:
+  extraDeploy:
+    - apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: database
+    - apiVersion: "acid.zalan.do/v1"
+      kind: postgresql
+      metadata:
+        name: keycloakdb
+        namespace: database
+        annotations:
+          argocd.argoproj.io/sync-wave: "-1"
+      spec:
+        teamId: "iam"
+        volume:
+          size: 5Gi
+        numberOfInstances: 2
+        users:
+          keycloak.keycloak:
+          - superuser
+          - createdb
+        databases:
+          keycloak: keycloak.keycloak
+        resources:
+          requests:
+            cpu: 500m
+            memory: 300Mi
+          limits:
+            cpu: 500m
+            memory: 300Mi
+        postgresql:
+          version: "15"
+          parameters:
+            password_encryption: scram-sha-256
+        nodeAffinity:
+         requiredDuringSchedulingIgnoredDuringExecution:
+           nodeSelectorTerms:
+             - matchExpressions:
+                 - key: node-role/apps
+                   operator: Exists
+
+  image:
+    registry: docker.io
+    repository: bitnami/keycloak
+    digest: "sha256:fad3de856001e563aac814c9b7554698ba8dca95615036f5f7257f20aa2488cd"
+    debug: false
+  commonLabels:
+    app: keycloak
+  production: true
+  proxy: edge
+  httpRelativePath: "/"
+  replicaCount: 2
+  containerPorts:
+    http: 8080
+    infinispan: 7800
+  podSecurityContext:
+    enabled: true
+    fsGroupChangePolicy: Always
+    fsGroup: 1001
+  containerSecurityContext:
+    enabled: true
+    runAsUser: 1001
+    runAsGroup: 1001
+    runAsNonRoot: true
+    privileged: false
+    readOnlyRootFilesystem: false
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: "RuntimeDefault"
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app: keycloak
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role/apps
+            operator: Exists
+  service:
+    type: ClusterIP
+    http:
+      enabled: true
+    ports:
+      http: 80
+  ingress:
+    enabled: true
+    pathType: ImplementationSpecific
+    hostname: keycloak.sb.cindrak.com
+    path: "{{ .Values.httpRelativePath }}"
+    servicePort: http
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-staging
+    tls: true
+  networkPolicy:
+    enabled: true
+    allowExternal: true
+    allowExternalEgress: true
+    kubeAPIServerPorts: [443, 6443, 8443]
+  serviceAccount:
+    create: false
+  rbac:
+    create: false
+  pdb:
+    create: true
+    minAvailable: 1
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 3
+    targetCPU: "70"
+    targetMemory: "60"
+  metrics:
+    enabled: true
+    service:
+      ports:
+        http: 8080
+    serviceMonitor:
+      enabled: enable
+      port: http
+      endpoints:
+        - path: '{{ include "keycloak.httpPath" . }}metrics'
+        - path: '{{ include "keycloak.httpPath" . }}realms/master/metrics'
+    prometheusRule:
+      enabled: false
+  keycloakConfigCli:
+    enabled: true
+    image:
+      registry: docker.io
+      repository: bitnami/keycloak-config-cli
+      tag: 5.10.0-debian-12-r9
+      digest: "sha256:27279a97abe6af64528b7cbba97838a99dd7a2cf1ef9ecc42e4492197a9d1dd8"
+      pullPolicy: IfNotPresent
+    annotations:
+      helm.sh/hook: "post-install,post-upgrade,post-rollback"
+      helm.sh/hook-delete-policy: "hook-succeeded,before-hook-creation"
+      helm.sh/hook-weight: "5"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 126M
+      limits:
+        cpu: 100m
+        memory: 256M
+    containerSecurityContext:
+      enabled: true
+      seLinuxOptions: null
+      runAsUser: 1001
+      runAsGroup: 1001
+      runAsNonRoot: true
+      privileged: false
+      readOnlyRootFilesystem: false
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+      seccompProfile:
+        type: "RuntimeDefault"
+    podSecurityContext:
+      enabled: true
+      fsGroupChangePolicy: Always
+      fsGroup: 1001
+    cleanupAfterFinished:
+      enabled: true
+      seconds: 600
+  postgresql:
+    enabled: false
+  externalDatabase:
+    host: "keycloakdb.database.svc"
+    port: 5432
+    database: keycloak
+    existingSecret: "keycloak.keycloak.keycloakdb.credentials.postgresql.acid.zalan.do"
+    existingSecretUserKey: "username"
+    existingSecretPasswordKey: "password"
+    annotations: {}
+  cache:
+    enabled: true
+    stackName: kubernetes
+  logging:
+    output: json
+    level: ERROR

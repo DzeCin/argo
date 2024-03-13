@@ -1,0 +1,57 @@
+kube-prometheus-stack:
+  prometheus:
+    enabled: true
+    commonLabels:
+      app: prometheus
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1500Mi
+      requests:
+        cpu: 250m
+        memory: 500Mi
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: prometheus
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: node-role/infra
+              operator: Exists
+  prometheusOperator:
+    resources:
+      limits:
+        cpu: 500m
+        memory: 500Mi
+      requests:
+        cpu: 250m
+        memory: 250Mi
+    topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app: grafana
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: node-role/infra
+              operator: Exists
+  alertmanager:
+    enabled: false
+  grafana:
+    enabled: false
+    forceDeployDatasources: true
+    forceDeployDashboards: true
+    defaultDashboardsEnabled: true
+    defaultDashboardsTimezone: browser
+    defaultDashboardsEditable: true

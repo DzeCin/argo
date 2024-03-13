@@ -1,0 +1,10 @@
+apiVersion: v2
+name: postgres-operator
+description: Sub chart for postgres-operator
+type: application
+version: 1.10.1
+appVersion: "1.16.0"
+dependencies:
+  - name: postgres-operator
+    version: 1.10.1
+    repository:  https://opensource.zalando.com/postgres-operator/charts/postgres-operator

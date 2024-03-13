@@ -1,0 +1,93 @@
+cert-manager:
+  global:
+    commonLabels:
+      app: cert-manager
+    rbac:
+      create: true
+      aggregateClusterRoles: true
+    logLevel: 2
+  installCRDs: true
+  replicaCount: 2
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  image:
+    repository: quay.io/jetstack/cert-manager-controller
+    digest: sha256:5cffa969fd30ce6a760994d30e7cccb3626abc8015d813de52f8cfa9ff862de9
+    pullPolicy: IfNotPresent
+
+  serviceAccount:
+    create: true
+    automountServiceAccountToken: true
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 516Mi
+  securityContext:
+    runAsNonRoot: true
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: true
+  topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app: cert-manager
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role/infra
+            operator: Exists
+  prometheus:
+    enabled: true
+    servicemonitor:
+      enabled: true
+  webhook:
+    replicaCount: 2
+    securityContext:
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      readOnlyRootFilesystem: true
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 516Mi
+    topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app: cert-manager
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: node-role/infra
+              operator: Exists
+    serviceAccount:
+      create: true
+      automountServiceAccountToken: true
