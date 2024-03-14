@@ -7,7 +7,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/DzeCin/argo-applications'
+    repoURL: 'https://github.com/DzeCin/argo'
     path: traefik/subChart
     targetRevision: HEAD
     helm:
